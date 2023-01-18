@@ -2,6 +2,8 @@ const { Client } = require('pg');
 
 const client = new Client('postgres://localhost:5432/juicebox-dev');
 
+// User methods
+
 async function createUser({ username, password, name, location }) {
       try {
             const { rows: [user] } = await client.query(`
@@ -60,8 +62,8 @@ async function getUserById(userId) {
           WHERE id=${userId};
         `);
 
-            if (user.length === 0) {
-                  return null;
+            if (!user) {
+                  return null
             }
 
             user.posts = await getPostsByUser(userId);
@@ -71,6 +73,8 @@ async function getUserById(userId) {
             throw error;
       }
 }
+
+//Post methods
 
 async function createPost({
       authorId,
@@ -152,6 +156,38 @@ async function getAllPosts() {
       }
 }
 
+async function getPostById(postId) {
+      try {
+            const { rows: [post] } = await client.query(`
+          SELECT *
+          FROM posts
+          WHERE id=$1;
+        `, [postId]);
+
+            const { rows: tags } = await client.query(`
+          SELECT tags.*
+          FROM tags
+          JOIN post_tags ON tags.id=post_tags."tagId"
+          WHERE post_tags."postId"=$1;
+        `, [postId])
+
+            const { rows: [author] } = await client.query(`
+          SELECT id, username, name, location
+          FROM users
+          WHERE id=$1;
+        `, [post.authorId])
+
+            post.tags = tags;
+            post.author = author;
+
+            delete post.authorId;
+
+            return post;
+      } catch (error) {
+            throw error;
+      }
+}
+
 async function getPostsByUser(userId) {
       try {
             const { rows: postIds } = await client.query(`
@@ -169,6 +205,26 @@ async function getPostsByUser(userId) {
             throw error;
       }
 }
+
+async function getPostsByTagName(tagName) {
+      try {
+            const { rows: postIds } = await client.query(`
+          SELECT posts.id
+          FROM posts
+          JOIN post_tags ON posts.id=post_tags."postId"
+          JOIN tags ON tags.id=post_tags."tagId"
+          WHERE tags.name=$1;
+        `, [tagName]);
+
+            return await Promise.all(postIds.map(
+                  post => getPostById(post.id)
+            ));
+      } catch (error) {
+            throw error;
+      }
+}
+
+// Tag methods
 
 async function createTags(tagList) {
       if (tagList.length === 0) {
@@ -212,37 +268,7 @@ async function createPostTag(postId, tagId) {
       }
 }
 
-async function getPostById(postId) {
-      try {
-            const { rows: [post] } = await client.query(`
-          SELECT *
-          FROM posts
-          WHERE id=$1;
-        `, [postId]);
 
-            const { rows: tags } = await client.query(`
-          SELECT tags.*
-          FROM tags
-          JOIN post_tags ON tags.id=post_tags."tagId"
-          WHERE post_tags."postId"=$1;
-        `, [postId])
-
-            const { rows: [author] } = await client.query(`
-          SELECT id, username, name, location
-          FROM users
-          WHERE id=$1;
-        `, [post.authorId])
-
-            post.tags = tags;
-            post.author = author;
-
-            delete post.authorId;
-
-            return post;
-      } catch (error) {
-            throw error;
-      }
-}
 
 async function addTagsToPost(postId, tagList) {
       try {
@@ -258,19 +284,14 @@ async function addTagsToPost(postId, tagList) {
       }
 }
 
-async function getPostsByTagName(tagName) {
+async function getAllTags() {
       try {
-            const { rows: postIds } = await client.query(`
-          SELECT posts.id
-          FROM posts
-          JOIN post_tags ON posts.id=post_tags."postId"
-          JOIN tags ON tags.id=post_tags."tagId"
-          WHERE tags.name=$1;
-        `, [tagName]);
+            const { rows } = await client.query(`
+          SELECT * 
+          FROM tags;
+        `);
 
-            return await Promise.all(postIds.map(
-                  post => getPostById(post.id)
-            ));
+            return { rows }
       } catch (error) {
             throw error;
       }
@@ -286,5 +307,10 @@ module.exports = {
       updatePost,
       getAllPosts,
       getUserById,
-      getPostsByTagName
+      getPostsByUser,
+      createTags,
+      getPostsByTagName,
+      getAllTags,
+      createPostTag,
+      addTagsToPost
 }
