@@ -29,6 +29,7 @@ async function dropTables() {
       }
 }
 
+
 async function createTables() {
       try {
             console.log("Starting to build tables...");
@@ -69,6 +70,7 @@ async function createTables() {
       }
 }
 
+
 async function createInitialUsers() {
       try {
             console.log("Starting to create users...");
@@ -83,6 +85,7 @@ async function createInitialUsers() {
             throw error;
       }
 }
+
 
 async function createInitialPosts() {
       try {
@@ -117,6 +120,7 @@ async function createInitialPosts() {
       }
 }
 
+
 async function rebuildDB() {
       try {
             client.connect();
@@ -131,6 +135,7 @@ async function rebuildDB() {
             throw error;
       }
 }
+
 
 async function testDB() {
       try {
